@@ -1,0 +1,49 @@
+// Visual answer sets and UI strings that are not in the question bank.
+window.OKOLO_EXTRAS = {
+  palettes: [
+    { ru: 'Тёплая земля', en: 'Warm earth', c: ['#3B332A', '#A0673F', '#D9A066', '#EAE1CF'] },
+    { ru: 'Свежая зелень', en: 'Fresh green', c: ['#1F3B2D', '#4F7F52', '#A8C686', '#F1F4E8'] },
+    { ru: 'Морская', en: 'Seaside', c: ['#12355B', '#2F6690', '#81C3D7', '#F2F7F9'] },
+    { ru: 'Пастель', en: 'Pastel', c: ['#F7C6C7', '#FCE4B6', '#C9E4DE', '#C6DEF1'] },
+    { ru: 'Яркая и смелая', en: 'Bright and bold', c: ['#FF4F5A', '#FFC93C', '#2EC4B6', '#1B1B1E'] },
+    { ru: 'Монохром', en: 'Monochrome', c: ['#111111', '#555555', '#BBBBBB', '#F5F5F5'] },
+    { ru: 'Глубокая и премиальная', en: 'Deep and premium', c: ['#1C1A2E', '#4B2E52', '#B08D57', '#EFE6D8'] },
+    { ru: 'Сладкая', en: 'Sweet', c: ['#FF8FAB', '#FFB3C6', '#FFE5EC', '#6A4C93'] }
+  ],
+  pairs: [
+    { a: { ru: 'Рукотворное', en: 'Handmade', s: 'hand' }, b: { ru: 'Точное', en: 'Precise', s: 'grid' } },
+    { a: { ru: 'Плотное', en: 'Dense', s: 'dense' }, b: { ru: 'Воздушное', en: 'Airy', s: 'airy' } },
+    { a: { ru: 'Округлое', en: 'Round', s: 'round' }, b: { ru: 'Угловатое', en: 'Angular', s: 'angular' } },
+    { a: { ru: 'Тихое', en: 'Quiet', s: 'quiet' }, b: { ru: 'Громкое', en: 'Loud', s: 'loud' } }
+  ],
+  fonts: [
+    { ru: 'Классика', en: 'Classic', f: "'PT Serif', serif" },
+    { ru: 'Чистый', en: 'Clean', f: "'Manrope', sans-serif" },
+    { ru: 'Мягкий', en: 'Soft', f: "'Nunito', sans-serif", w: 900 },
+    { ru: 'От руки', en: 'Handwritten', f: "'Caveat', cursive" },
+    { ru: 'Широкий и громкий', en: 'Wide and loud', f: "'Unbounded', sans-serif", w: 700 },
+    { ru: 'Узкий и строгий', en: 'Narrow and strict', f: "'Oswald', sans-serif", w: 600 }
+  ],
+  fontsCss: 'https://fonts.googleapis.com/css2?family=PT+Serif:wght@400&family=Manrope:wght@500&family=Caveat:wght@500&family=Unbounded:wght@700&family=Oswald:wght@600&display=swap',
+  ui: {
+    'mode.quick': { ru: 'Перейти в быстрый режим', en: 'Switch to quick mode' },
+    'mode.now.quick': { ru: 'Быстрый режим', en: 'Quick mode' },
+    'mode.now.deep': { ru: 'Подробный режим', en: 'Detailed mode' },
+    'intro.resume': { ru: 'Продолжить', en: 'Continue' },
+    'intro.restart': { ru: 'Начать заново', en: 'Start over' },
+    'other.placeholder': { ru: 'Напиши, что именно', en: 'Tell me what exactly' },
+    'files.drop': { ru: 'Перетащи файлы или нажми', en: 'Drop files or tap' },
+    'files.note': { ru: 'JPG, PNG, WEBP, SVG, PDF до 10 МБ · видео ссылкой', en: 'JPG, PNG, WEBP, SVG, PDF up to 10 MB · video as a link' },
+    'links.placeholder': { ru: 'Ссылки, каждая с новой строки', en: 'Links, one per line' },
+    'contact.email': { ru: 'Почта', en: 'Email' },
+    'contact.channel': { ru: 'Где удобнее общаться?', en: 'Where do you prefer to talk?' },
+    'contact.handle': { ru: 'Ник, номер или ссылка', en: 'Handle, number or link' },
+    'sending': { ru: 'Отправляю…', en: 'Sending…' },
+    'demo': { ru: 'Демо-режим: бриф никуда не отправлен.', en: 'Demo mode: the brief was not sent anywhere.' },
+    'picked': { ru: 'Выбрано: {n} из {max}', en: 'Picked: {n} of {max}' },
+    'date.placeholder': { ru: 'Что к ней привязано?', en: 'What’s tied to it?' },
+    'text.placeholder': { ru: 'Пиши как есть', en: 'Write it as it is' },
+    'socials.soon': { ru: 'Скоро', en: 'Soon' },
+    'lang': { ru: 'Язык', en: 'Language' }
+  }
+};
