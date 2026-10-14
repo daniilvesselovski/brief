@@ -129,9 +129,10 @@
         <h1>${esc(fill(ui('final.title')))}</h1>
         <p class="body-text">${esc(fill(ui('final.body'), { email: (S.a.W07 && S.a.W07.email) || '' }))}</p>
         ${S.demo ? `<p class="demo-note">${esc(ui('demo'))}</p>` : ''}
+        <button class="modelink" id="again" style="color:var(--cream)">${esc(ui('final.again'))}</button>
       </div>
       <div class="grow"></div>
-      <div class="hero" style="gap:16px"><div class="sign">${esc(ui('final.sign'))}</div>${socials()}<button class="modelink" id="again" style="color:var(--cream)">${esc(ui('final.again'))}</button></div>
+      <div class="hero" style="gap:16px"><div class="sign">${esc(ui('final.sign'))}</div>${socials()}</div>
     </section>`;
     app.querySelector('#again').onclick = () => { const l = S.lang; S = blank(); S.lang = l; save(); render(); scrollTo(0, 0); };
   }
@@ -339,7 +340,14 @@
     node.placeholder = q.id === 'S02' ? (S.lang === 'ru' ? 'Имя' : 'Name') : (multi ? ui('text.placeholder') : '');
     node.setAttribute('aria-labelledby', 'qt');
     node.oninput = () => { S.a[k] = node.value; save(); };
-    if (!multi) node.onkeydown = e => { if (e.key === 'Enter') app.querySelector('#next').click(); };
+    // Enter jumps to the next field on the screen; only the last one moves on
+    if (!multi) { node.enterKeyHint = 'next'; node.onkeydown = e => {
+      if (e.key !== 'Enter' || e.isComposing) return;
+      e.preventDefault();
+      const all = [...app.querySelectorAll('input.input, textarea.textarea')];
+      const nxt = all[all.indexOf(node) + 1];
+      if (nxt) nxt.focus(); else app.querySelector('#next').click();
+    }; }
     wrap.appendChild(node);
     return node;
   }
@@ -458,12 +466,13 @@
     d.ondragover = e => { e.preventDefault(); d.classList.add('over'); };
     d.ondragleave = () => d.classList.remove('over');
     d.ondrop = e => { e.preventDefault(); d.classList.remove('over'); add(e.dataTransfer.files); };
-    wrap.appendChild(d); wrap.appendChild(list); draw();
+    // typing first, attachments second (same order as text_files)
     if (withLinks) {
       const t = el(`<textarea class="textarea narrow" rows="3"></textarea>`); t.placeholder = ui('links.placeholder'); t.value = v.links || '';
       t.oninput = () => { v.links = t.value; save(); };
       wrap.appendChild(t);
     }
+    wrap.appendChild(d); wrap.appendChild(list); draw();
   }
 
   const PAIR_SVG = {
