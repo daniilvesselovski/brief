@@ -7,6 +7,8 @@
  *   SHEET_ID      Google Sheet id (from its URL)
  *   FOLDER_ID     Drive folder id for uploads
  *   OWNER_EMAIL   where new briefs are announced
+ *   SENDER_EMAIL  address the client copy comes from (optional). Must be a Gmail "Send mail as" alias,
+ *                 e.g. hello@okolo.studio. Without it, mail goes from the Google account itself.
  *   NOTION_TOKEN  Notion internal integration secret (optional)
  *   NOTION_DB     Notion database id (optional)
  */
@@ -21,7 +23,7 @@ function doPost(e) {
     const fileLinks = saveFiles_(d, p.FOLDER_ID);
     writeRow_(d, fileLinks, p.SHEET_ID);
     try { if (p.NOTION_TOKEN && p.NOTION_DB) notion_(d, fileLinks, p); } catch (err) { console.error('Notion', err); }
-    mail_(d, fileLinks, p.OWNER_EMAIL);
+    mail_(d, fileLinks, p.OWNER_EMAIL, p.SENDER_EMAIL);
     return json_({ ok: true });
   } catch (err) {
     console.error(err);
@@ -63,7 +65,16 @@ function summary_(d) {
   return Object.keys(d.answers).filter(k => d.answers[k]).map(k => k + ': ' + d.answers[k]).join('\n');
 }
 
-function mail_(d, files, owner) {
+// Send from the studio address when it is a verified Gmail alias, otherwise fall back to the account address.
+function send_(m, from) {
+  if (from && GmailApp.getAliases().indexOf(from) >= 0) {
+    GmailApp.sendEmail(m.to, m.subject, m.body, { from: from, name: m.name || 'OKOLO', replyTo: m.replyTo || from });
+  } else {
+    MailApp.sendEmail(m);
+  }
+}
+
+function mail_(d, files, owner, from) {
   const ru = d.lang === 'ru';
   const fl = files.length ? '\n\n' + (ru ? 'Файлы:' : 'Files:') + '\n' + files.map(f => f.name + ' — ' + f.url).join('\n') : '';
   if (d.email) {
@@ -71,11 +82,11 @@ function mail_(d, files, owner) {
     const body = (ru
       ? 'Привет, ' + d.name + '!\n\nСпасибо за бриф! Ниже все твои ответы, чтобы они были под рукой.\n\nВ течение 3 рабочих дней я напишу тебе, чтобы договориться о созвоне.\n\n'
       : 'Hi ' + d.name + '!\n\nThanks for the brief! All your answers are below so you have them at hand.\n\nI’ll get in touch within 3 working days to set up a call.\n\n') + summary_(d) + fl + '\n\nOKOLO';
-    MailApp.sendEmail({ to: d.email, subject: subj, body: body, name: 'OKOLO', replyTo: owner || '' });
+    send_({ to: d.email, subject: subj, body: body, name: 'Daniil · OKOLO Studio', replyTo: from || owner || '' }, from);
   }
   if (owner) {
-    MailApp.sendEmail({ to: owner, subject: 'Новый бриф: ' + (d.brand || '—') + ' · ' + (d.answers.C10 || '') + ' · ' + (d.answers.W03 || ''),
-      body: d.name + ' <' + d.email + '>\nРежим: ' + d.mode + ' · Язык: ' + d.lang + '\n\n' + summary_(d) + fl, replyTo: d.email || owner });
+    send_({ to: owner, name: 'OKOLO Brief', subject: 'Новый бриф: ' + (d.brand || '—') + ' · ' + (d.answers.C10 || '') + ' · ' + (d.answers.W03 || ''),
+      body: d.name + ' <' + d.email + '>\nРежим: ' + d.mode + ' · Язык: ' + d.lang + '\n\n' + summary_(d) + fl, replyTo: d.email || owner }, from);
   }
 }
 
