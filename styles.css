@@ -285,3 +285,4 @@ body.no-scroll { overflow: hidden; }
 .cal-foot button { background: none; border: 0; font: 700 13px/1 var(--body); cursor: pointer; color: var(--text); padding: 8px 0; }
 .cal-clear { color: var(--muted) !important; }
 .date-box .date-btn { padding-right: 16px; }
+@media (max-width: 374px) { .footer .btn { padding-left: 18px; padding-right: 18px; } .footer .btn.next { min-width: 0; } }

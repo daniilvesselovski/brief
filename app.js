@@ -16,8 +16,10 @@
   const ui = k => { const v = QB.ui[k] || X.ui[k]; return v ? v[S.lang] : k; };
   const name = () => (S.a.S02 || '').trim();
   const brand = () => (S.a.C01 || '').trim() || (S.lang === 'ru' ? 'твой бренд' : 'your brand');
+  // Keep short words (prepositions, conjunctions, "I", "a") glued to the next word, and dashes to the previous one.
+  const typo = s => s.replace(/(^|[\s(«"])([A-Za-zА-Яа-яЁё]{1,2})\s+/g, '$1$2\u00A0').replace(/(^|[\s(«"])([A-Za-zА-Яа-яЁё]{1,2})\s+/g, '$1$2\u00A0').replace(/\s+([—–])/g, '\u00A0$1');
   function fill(str, extra) {
-    return String(str || '')
+    return typo(String(str || ''))
       .replace(/\{name\}/g, name() || (S.lang === 'ru' ? 'друг' : 'friend'))
       .replace(/\{brand\}/g, brand())
       .replace(/\{(\w+)\}/g, (m, k) => (extra && k in extra ? extra[k] : m));
