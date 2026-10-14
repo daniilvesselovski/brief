@@ -68,11 +68,26 @@ function summary_(d) {
 // Send from the studio address when it is a verified Gmail alias, otherwise fall back to the account address.
 function send_(m, from) {
   if (from && GmailApp.getAliases().indexOf(from) >= 0) {
-    GmailApp.sendEmail(m.to, m.subject, m.body, { from: from, name: m.name || 'OKOLO', replyTo: m.replyTo || from });
+    const o = { from: from, name: m.name || 'OKOLO', replyTo: m.replyTo || from };
+    if (m.htmlBody) o.htmlBody = m.htmlBody;
+    GmailApp.sendEmail(m.to, m.subject, m.body, o);
   } else {
     MailApp.sendEmail(m);
   }
 }
+
+function esc_(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+// Same design as the Zoho signature (okolo-brief/signature/signature.html); mark is hosted on okolo.studio.
+const SIGNATURE_TEXT = '\n\n—\nDaniil Vesselovski\nDesigner & founder, OKOLO Studio\nhello@okolo.studio · instagram.com/okolo.studio';
+const SIGNATURE = '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;color:#3B332A;"><tr>'
+  + '<td style="padding:0 14px 0 0;vertical-align:middle;"><img src="https://okolo.studio/assets/okolo-mark-192.png" width="56" height="56" alt="OKOLO" style="display:block;width:56px;height:56px;border:0;"></td>'
+  + '<td style="padding:0 0 0 14px;border-left:2px solid #8FB3F0;vertical-align:middle;">'
+  + '<div style="font-size:15px;line-height:20px;font-weight:bold;color:#3B332A;">Daniil Vesselovski</div>'
+  + '<div style="font-size:13px;line-height:18px;color:#7A6B57;">Designer &amp; founder, OKOLO Studio</div>'
+  + '<div style="font-size:13px;line-height:18px;padding-top:6px;"><a href="mailto:hello@okolo.studio" style="color:#3B332A;text-decoration:none;">hello@okolo.studio</a>'
+  + '<span style="color:#8FB3F0;">&nbsp;·&nbsp;</span><a href="https://instagram.com/okolo.studio" style="color:#3B332A;text-decoration:none;">Instagram</a></div>'
+  + '</td></tr></table>';
 
 function mail_(d, files, owner, from) {
   const ru = d.lang === 'ru';
@@ -81,8 +96,10 @@ function mail_(d, files, owner, from) {
     const subj = ru ? 'Твой бриф для OKOLO: ' + (d.brand || '') : 'Your OKOLO brief: ' + (d.brand || '');
     const body = (ru
       ? 'Привет, ' + d.name + '!\n\nСпасибо за бриф! Ниже все твои ответы, чтобы они были под рукой.\n\nВ течение 3 рабочих дней я напишу тебе, чтобы договориться о созвоне.\n\n'
-      : 'Hi ' + d.name + '!\n\nThanks for the brief! All your answers are below so you have them at hand.\n\nI’ll get in touch within 3 working days to set up a call.\n\n') + summary_(d) + fl + '\n\nOKOLO';
-    send_({ to: d.email, subject: subj, body: body, name: 'Daniil · OKOLO Studio', replyTo: from || owner || '' }, from);
+      : 'Hi ' + d.name + '!\n\nThanks for the brief! All your answers are below so you have them at hand.\n\nI’ll get in touch within 3 working days to set up a call.\n\n') + summary_(d) + fl;
+    const html = '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:21px;color:#3B332A;">'
+      + esc_(body).replace(/(https:\/\/\S+)/g, '<a href="$1" style="color:#3B332A;">$1</a>').replace(/\n/g, '<br>') + '</div><br><br>' + SIGNATURE;
+    send_({ to: d.email, subject: subj, body: body + SIGNATURE_TEXT, htmlBody: html, name: 'Daniil · OKOLO Studio', replyTo: from || owner || '' }, from);
   }
   if (owner) {
     send_({ to: owner, name: 'OKOLO Brief', subject: 'Новый бриф: ' + (d.brand || '—') + ' · ' + (d.answers.C10 || '') + ' · ' + (d.answers.W03 || ''),
