@@ -73,6 +73,9 @@
   function render() {
     document.documentElement.lang = S.lang;
     document.title = S.lang === 'ru' ? 'OKOLO · Бриф' : 'OKOLO · Brief';
+    const dark = S.screen === 'intro' || S.screen === 'final';
+    document.documentElement.classList.toggle('dark-page', dark);
+    document.querySelector('meta[name=theme-color]').content = dark ? '#3B332A' : '#F6F1E7';
     if (S.screen === 'intro') return renderIntro();
     if (S.screen === 'final') return renderFinal();
     renderQuestion();
@@ -95,7 +98,7 @@
       <div class="grow"></div>
       <div class="hero">
         ${window.OKOLO_LOGO}
-        <h1>${esc(ui('intro.title'))}</h1>
+        <h1>${esc(ui('intro.title')).replace(/! (.*)$/, '!<br class="br-mob"> <span class="nw">$1</span>')}</h1>
         <p class="body-text">${esc(ui('intro.body'))}</p>
       </div>
       <div class="grow"></div>
@@ -403,7 +406,7 @@
     files: (q, w) => filesField(q, w, true),
     links: (q, w) => textInput(q, w, true),
     text_files: (q, w) => { textInput(q, w, true, q.id + '_text'); filesField(q, w, false); },
-    date: (q, w) => { const d = el('<input class="input narrow" type="date">'); d.value = S.a[q.id] || ''; d.oninput = () => setA(q, d.value); w.appendChild(d); },
+    date: (q, w) => { const box = el('<div class="date-box narrow"><svg class="date-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>'); const d = el('<input class="input" type="date">'); box.prepend(d); d.value = S.a[q.id] || ''; d.oninput = () => setA(q, d.value); w.appendChild(box); },
     date_text: (q, w) => { FIELDS.date(q, w); textInput(q, w, true, q.id + '_text').placeholder = ui('date.placeholder'); },
     contact: (q, w) => {
       const v = S.a[q.id] && typeof S.a[q.id] === 'object' ? S.a[q.id] : { email: '', channel: null, handle: '' };
@@ -448,6 +451,7 @@
       if (q.type === 'multi') return (v || []).map(i => o[i]).join('; ');
       if (q.type === 'contact') return v ? [v.email, v.channel != null ? o[v.channel] : '', v.handle].filter(Boolean).join(' · ') : '';
       if (q.type === 'files') return v ? (v.links || '') : '';
+      if (q.type === 'text_files') return '';
       if (q.type === 'consent') return v ? 'да' : 'нет';
       return v == null ? '' : String(v);
     };
