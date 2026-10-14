@@ -9,6 +9,7 @@
   // ---------- state ----------
   const blank = () => ({ lang: (navigator.language || 'ru').toLowerCase().startsWith('ru') ? 'ru' : 'en', screen: 'intro', idx: 0, a: {}, started: null });
   let S = load() || blank();
+  if (/[?&]reset\b/.test(location.search)) { S = blank(); history.replaceState(null, '', location.pathname); }
   function load() { try { return JSON.parse(localStorage.getItem(CFG.storageKey)); } catch (e) { return null; } }
   function save() { try { localStorage.setItem(CFG.storageKey, JSON.stringify(S)); } catch (e) { /* quota or private mode */ } }
 
@@ -126,8 +127,9 @@
         ${S.demo ? `<p class="demo-note">${esc(ui('demo'))}</p>` : ''}
       </div>
       <div class="grow"></div>
-      <div class="hero" style="gap:16px"><div class="sign">${esc(ui('final.sign'))}</div>${socials()}</div>
+      <div class="hero" style="gap:16px"><div class="sign">${esc(ui('final.sign'))}</div>${socials()}<button class="modelink" id="again" style="color:var(--cream)">${esc(ui('final.again'))}</button></div>
     </section>`;
+    app.querySelector('#again').onclick = () => { const l = S.lang; S = blank(); S.lang = l; save(); render(); scrollTo(0, 0); };
   }
 
   function renderQuestion() {
@@ -178,7 +180,7 @@
     const err = group.map(validate).find(Boolean);
     const box = app.querySelector('#err');
     if (err === ui('err.past')) { box.textContent = ''; const d = app.querySelector('.date-btn.bad'); d && d.focus(); return; } // shown under the date field
-    if (err) { box.textContent = err; return; }
+    if (err) { box.textContent = err; nudge(box); return; }
     box.textContent = '';
     // many modules in deep mode → offer the quick brief
     if (group.some(q => q.id === 'C10')) {
@@ -281,6 +283,12 @@
     const paint = () => app.querySelectorAll('.steps li').forEach((li, i) => { li.className = i < k ? 'done' : i === k ? 'now' : ''; });
     paint(); clearInterval(stepTimer);
     stepTimer = setInterval(() => { if (k < steps.length - 1) { k++; paint(); } }, 3500);
+  }
+
+  // Make a failed "Next" tap visible: bring the message into view and shake the button.
+  function nudge(box) {
+    box.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const b = app.querySelector('#next'); b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake');
   }
 
   function manyModules() {

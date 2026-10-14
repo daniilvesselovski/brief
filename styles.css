@@ -298,3 +298,9 @@ body.no-scroll { overflow: hidden; }
 .date-err:empty { display: none; }
 .date-btn.bad { border-color: var(--error); }
 .check span { text-wrap: balance; }
+
+/* v0.5: reliable taps */
+button, .card, .chip, a { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.btn.shake { animation: shake .4s ease; }
+@keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+@media (prefers-reduced-motion: reduce) { .btn.shake { animation: none; } }
