@@ -91,10 +91,10 @@
     Behance: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h5a3 3 0 0 1 0 6H3zM3 12h6a3 3 0 0 1 0 6H3z"/><path d="M14 14h7a3.5 3.5 0 1 0-1 2.5M15 7h5"/></svg>',
     Email: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M4 7.5 12 13l8-5.5"/></svg>'
   };
-  const SOC_URL = { Instagram: 'https://www.instagram.com/okolo.studio/', Email: 'mailto:hello@okolo.studio' };
+  const SOC_URL = { Instagram: 'https://www.instagram.com/okolo.studio/', Telegram: 'https://t.me/okolo_studio', Email: 'mailto:hello@okolo.studio' };
   const socials = () => '<div class="socials">' + Object.entries(SOC).map(([n, s]) => SOC_URL[n]
     ? `<a class="social" href="${SOC_URL[n]}"${n === 'Email' ? '' : ' target="_blank" rel="noopener"'} aria-label="${n === 'Email' ? 'hello@okolo.studio' : n}">${s}</a>`
-    : `<span class="social" role="img" aria-label="${n} · ${esc(ui('socials.soon'))}" title="${n} · ${esc(ui('socials.soon'))}">${s}</span>`).join('') + '</div>';
+    : `<span class="social soon" role="img" aria-label="${n} · ${esc(ui('socials.soon'))}" title="${n} · ${esc(ui('socials.soon'))}">${s}</span>`).join('') + '</div>';
 
   function renderIntro() {
     const resume = Object.keys(S.a).length > 0;

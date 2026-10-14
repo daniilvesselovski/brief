@@ -79,14 +79,15 @@ function send_(m, from) {
 function esc_(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
 // Same design as the Zoho signature (okolo-brief/signature/signature.html); mark is hosted on okolo.studio.
-const SIGNATURE_TEXT = '\n\n—\nDaniil Vesselovski\nDesigner & founder, OKOLO Studio\nhello@okolo.studio · instagram.com/okolo.studio';
+const SIGNATURE_TEXT = '\n\n—\nDaniil Vesselovski\nDesigner & founder, OKOLO Studio\nhello@okolo.studio · instagram.com/okolo.studio · t.me/okolo_studio';
 const SIGNATURE = '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;color:#3B332A;"><tr>'
   + '<td style="padding:0 14px 0 0;vertical-align:middle;"><img src="https://okolo.studio/assets/okolo-mark-192.png" width="56" height="56" alt="OKOLO" style="display:block;width:56px;height:56px;border:0;"></td>'
   + '<td style="padding:0 0 0 14px;border-left:2px solid #8FB3F0;vertical-align:middle;">'
   + '<div style="font-size:15px;line-height:20px;font-weight:bold;color:#3B332A;">Daniil Vesselovski</div>'
   + '<div style="font-size:13px;line-height:18px;color:#7A6B57;">Designer &amp; founder, OKOLO Studio</div>'
   + '<div style="font-size:13px;line-height:18px;padding-top:6px;"><a href="mailto:hello@okolo.studio" style="color:#3B332A;text-decoration:none;">hello@okolo.studio</a>'
-  + '<span style="color:#8FB3F0;">&nbsp;·&nbsp;</span><a href="https://instagram.com/okolo.studio" style="color:#3B332A;text-decoration:none;">Instagram</a></div>'
+  + '<span style="color:#8FB3F0;">&nbsp;·&nbsp;</span><a href="https://instagram.com/okolo.studio" style="color:#3B332A;text-decoration:none;">Instagram</a>'
+  + '<span style="color:#8FB3F0;">&nbsp;·&nbsp;</span><a href="https://t.me/okolo_studio" style="color:#3B332A;text-decoration:none;">Telegram</a></div>'
   + '</td></tr></table>';
 
 function mail_(d, files, owner, from) {
