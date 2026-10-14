@@ -304,3 +304,4 @@ button, .card, .chip, a { touch-action: manipulation; -webkit-tap-highlight-colo
 .btn.shake { animation: shake .4s ease; }
 @keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
 @media (prefers-reduced-motion: reduce) { .btn.shake { animation: none; } }
+a.social{color:inherit;text-decoration:none}
