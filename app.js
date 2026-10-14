@@ -78,6 +78,7 @@
     document.querySelector('meta[name=theme-color]').content = dark ? '#3B332A' : '#F6F1E7';
     if (S.screen === 'intro') return renderIntro();
     if (S.screen === 'final') return renderFinal();
+    if (S.screen === 'sending') return renderSending();
     renderQuestion();
   }
 
@@ -98,7 +99,7 @@
       <div class="grow"></div>
       <div class="hero">
         ${window.OKOLO_LOGO}
-        <h1>${esc(ui('intro.title')).replace(/! (.*)$/, '!<br class="br-mob"> <span class="nw">$1</span>')}</h1>
+        <h1>${esc(ui('intro.title')).replace(/! (.*)$/, '!<br> <span class="nw">$1</span>')}</h1>
         <p class="body-text">${esc(ui('intro.body'))}</p>
       </div>
       <div class="grow"></div>
@@ -137,8 +138,11 @@
     const eyes = [0, 1, 2, 3, 4, 5].map(i => `<span class="eye ${i < phase ? 'done' : i === phase ? 'current' : ''}"></span>`).join('');
     const pos = `${S.idx + 1}/${list.length}`;
     const optional = group.every(q => !q.req);
+    const reachAt = Math.max(S.idx, reachIndex(list));
+    const editing = S.idx < reachAt;
     app.innerHTML = `<section class="screen fade">
-      <header class="header">${window.OKOLO_LOGO}<div class="eyes" role="img" aria-label="${esc(fill(ui('progress'), { n: S.idx + 1, total: list.length }))}">${eyes}</div></header>
+      <header class="header">${window.OKOLO_LOGO}<button class="hist-btn" id="hist" aria-haspopup="dialog" aria-label="${esc(ui('hist.open'))}. ${esc(fill(ui('progress'), { n: S.idx + 1, total: list.length }))}"><span class="eyes">${eyes}</span><span class="chev" aria-hidden="true">▾</span></button></header>
+      ${editing ? `<div class="edit-banner">${esc(ui('hist.banner'))}</div>` : ''}
       <div class="grow" data-d></div>
       <div class="q">
         <div class="eyebrow"><span>${esc(blockName(q0))} · ${pos}</span>${optional ? `<span class="tag">${esc(ui('optional'))}</span>` : ''}</div>
@@ -151,14 +155,16 @@
       <div class="grow"></div>
       ${q0.id !== 'S02' && q0.id !== 'S03' ? `<button class="modelink" id="mode">${esc(t.has('DEEP') ? ui('mode.quick') : ui('mode.switch'))}</button>` : ''}
       <footer class="footer">
-        ${S.idx > 0 ? `<button class="btn back" id="back">${esc(ui('btn.back'))}</button>` : `<button class="btn back" id="back">${esc(ui('btn.back'))}</button>`}
-        <button class="btn primary next" id="next">${esc(S.idx === list.length - 1 ? ui('btn.submit') : ui('btn.next'))}</button>
+        <button class="btn back" id="back">${esc(editing ? ui('hist.cancel') : ui('btn.back'))}</button>
+        <button class="btn primary next" id="next">${esc(editing ? ui('hist.save') : S.idx === list.length - 1 ? ui('btn.submit') : ui('btn.next'))}</button>
       </footer>
     </section>`;
     // desktop: drop the top spacer so the header sits at the top and the question floats in the middle
     const box = app.querySelector('#answers');
     group.forEach((q, i) => box.appendChild(field(q, i > 0)));
-    app.querySelector('#back').onclick = () => { if (S.idx === 0) S.screen = 'intro'; else S.idx--; save(); render(); scrollTo(0, 0); };
+    app.querySelector('#back').onclick = () => { if (editing) S.idx = reachAt; else if (S.idx === 0) S.screen = 'intro'; else S.idx--; save(); render(); scrollTo(0, 0); };
+    app.querySelector('#hist').onclick = () => openHistory(list, reachAt);
+    markReach(list);
     app.querySelector('#next').onclick = () => next(group, list);
     const m = app.querySelector('#mode');
     if (m) m.onclick = () => { S.a.S03 = t.has('DEEP') ? 0 : 1; const cur = q0.id; save(); const l2 = screens(); S.idx = Math.max(0, l2.findIndex(g => g.some(q => q.id === cur))); save(); render(); };
@@ -179,8 +185,95 @@
     const l2 = screens(); // answers may have changed the path
     const cur = group[0].id;
     const at = l2.findIndex(g => g[0].id === cur);
+    const reach = reachIndex(l2);
+    if (at < reach) { // editing an earlier answer: go to the first screen still waiting for an answer
+      let to = l2.findIndex((g, i) => i > at && g.some(q => !answered(q)));
+      if (to < 0 || to > reach) to = reach;
+      S.idx = to; save(); render(); scrollTo(0, 0); return;
+    }
     if (at >= l2.length - 1) return submit();
     S.idx = at + 1; save(); render(); scrollTo(0, 0);
+  }
+
+  // ---------- answer history ----------
+  // S.reach = first question id of the furthest screen the person has opened.
+  function reachIndex(list) { const i = S.reach ? list.findIndex(g => g.some(q => q.id === S.reach)) : -1; return i < 0 ? S.idx : i; }
+  function markReach(list) { if (S.idx >= reachIndex(list)) { S.reach = list[S.idx][0].id; save(); } }
+  function answered(q) {
+    const v = S.a[q.id];
+    if (q.type === 'files') return !!(v && ((v.files || []).length || (v.links || '').trim()));
+    if (q.type === 'contact') return !!(v && v.email);
+    if (q.type === 'sliders' || q.type === 'consent') return v != null;
+    return !(v == null || v === '' || (Array.isArray(v) && v.length === 0)) || !!S.a[q.id + '_text'];
+  }
+  function answerText(q) {
+    const v = S.a[q.id], L = S.lang;
+    const o = (q[L] && q[L].opts) || [];
+    let s = '';
+    if (q.type === 'palettes') s = (v || []).map(i => X.palettes[i][L]).join(', ');
+    else if (q.type === 'fonts') s = (v || []).map(i => X.fonts[i][L]).join(', ');
+    else if (q.type === 'pairs') s = (v || []).map((j, i) => j == null ? '' : X.pairs[i][j ? 'b' : 'a'][L]).filter(Boolean).join(', ');
+    else if (q.type === 'sliders') s = (v || []).join(' · ');
+    else if (q.type === 'single') s = typeof v === 'number' ? o[v] : '';
+    else if (q.type === 'multi') s = (v || []).map(i => o[i]).join(', ');
+    else if (q.type === 'contact') s = v ? v.email : '';
+    else if (q.type === 'files' || q.type === 'text_files') { const n = (v && v.files || []).length; s = [S.a[q.id + '_text'], n ? fill(ui('hist.files'), { n }) : '', v && v.links].filter(Boolean).join(' · '); }
+    else if (q.type === 'consent') s = v ? '✓' : '';
+    else if (q.type === 'date' || q.type === 'date_text') s = [fmtDate(v), S.a[q.id + '_text']].filter(Boolean).join(' · ');
+    else s = v == null ? '' : String(v);
+    if (S.a[q.id + '_other']) s = [s, S.a[q.id + '_other']].filter(Boolean).join(' — ');
+    return s || ui('hist.empty');
+  }
+  function openHistory(list, reachAt) {
+    const prevFocus = document.activeElement;
+    const bg = document.createElement('div'); bg.className = 'sheet-bg';
+    let last = '', rows = '';
+    list.slice(0, reachAt).forEach((g, i) => {
+      if (g[0].block !== last) { last = g[0].block; rows += `<p class="sheet-group">${esc(blockName(g[0]))}</p>`; }
+      rows += `<button class="sheet-row" data-i="${i}"><span class="sr-col"><span class="sr-q">${esc(fill(T(g[0], 'q')))}</span><span class="sr-a">${esc(g.map(answerText).join(' · '))}</span></span><span class="sr-edit">${esc(ui('hist.edit'))}</span></button>`;
+    });
+    const cur = list[reachAt];
+    bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-t">
+      <div class="sheet-in">
+        <h2 id="sheet-t">${esc(ui('hist.title'))}</h2>
+        <p class="hint">${esc(ui('hist.hint'))}</p>
+        <div class="sheet-list">${rows || `<p class="hint">${esc(ui('hist.none'))}</p>`}
+          <button class="sheet-row now" data-i="${reachAt}"><span class="sr-q">${esc(ui('hist.now'))} · ${esc(fill(T(cur[0], 'q')))}</span></button>
+          <p class="sheet-next">${esc(ui('hist.next'))}</p>
+        </div>
+        <button class="sheet-close" id="sclose"><span></span>${esc(ui('hist.close'))} ▴</button>
+      </div></div>`;
+    document.body.appendChild(bg);
+    document.body.classList.add('no-scroll');
+    requestAnimationFrame(() => bg.classList.add('open'));
+    const close = () => { bg.classList.remove('open'); document.body.classList.remove('no-scroll'); setTimeout(() => bg.remove(), 260); document.removeEventListener('keydown', onKey); prevFocus && prevFocus.focus && prevFocus.focus(); };
+    const onKey = e => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', onKey);
+    bg.onclick = e => { if (e.target === bg) close(); };
+    bg.querySelector('#sclose').onclick = close;
+    bg.querySelectorAll('.sheet-row').forEach(b => b.onclick = () => { S.idx = +b.dataset.i; save(); bg.remove(); document.body.classList.remove('no-scroll'); document.removeEventListener('keydown', onKey); render(); scrollTo(0, 0); });
+    bg.querySelector('.sheet-row') && bg.querySelector('.sheet-row').focus();
+  }
+
+  // ---------- sending ----------
+  const MARK_SVG = '<svg class="mark-anim" aria-hidden="true" width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="80" cy="80" r="80" fill="#8FB3F0"/><path d="M70.9103 48.0895C87.3016 47.3599 104.119 46.6606 117.9 57.1481C127.268 64.2769 134.254 78.7854 135.701 90.109C136.986 100.167 134.097 113.219 127.535 121.062C117.042 133.605 105.725 136.227 90.4504 137.898C75.9445 139.434 49.8965 133.66 38.466 124.311C15.8173 105.787 21.0635 72.4507 45.1613 57.8795C54.0462 52.5068 60.0532 49.087 70.6496 48.1266C70.7361 48.1143 70.8234 48.1018 70.9103 48.0895ZM81.0598 63.7653C53.6501 68.2514 55.9426 118.437 84.5314 117.677C111.202 111.585 107.727 63.862 81.0598 63.7653ZM81.5178 78.9508C94.7788 77.5955 97.1719 98.7281 85.7111 104.34C72.4888 106.194 69.4934 85.3458 81.5178 78.9508Z" fill="#3B332A"/><path class="m-eye" d="M59.6441 28.1847C62.7207 27.3164 66.0264 28.194 68.2678 30.4736C70.5088 32.7532 71.33 36.0729 70.4095 39.1347C69.4894 42.1964 66.974 44.5133 63.8473 45.1793C59.225 46.1643 54.6552 43.304 53.5205 38.7164C52.3858 34.1288 55.0955 29.4683 59.6441 28.1847Z" fill="#3B332A"/><path class="m-eye" d="M104.64 28.2343C107.686 27.3257 110.984 28.1389 113.258 30.3582C115.533 32.5775 116.426 35.8552 115.591 38.9217C114.757 41.9877 112.327 44.3614 109.242 45.1228C104.627 46.2614 99.9468 43.5105 98.6972 38.9246C97.4479 34.3383 100.086 29.5934 104.64 28.2343Z" fill="#3B332A"/></svg>';
+  let stepTimer = null;
+  function renderSending() {
+    const steps = ['send.s1', 'send.s2', 'send.s3', 'send.s4'].map(ui);
+    app.innerHTML = `<section class="screen center fade sending">
+      <div class="grow"></div>
+      <div class="hero">
+        <div class="mark-wrap">${MARK_SVG}</div>
+        <h1>${esc(ui('send.title'))}</h1>
+        <ol class="steps">${steps.map((s, i) => `<li data-s="${i}">${esc(s)}</li>`).join('')}</ol>
+        <p class="hint">${esc(ui('send.note'))}</p>
+      </div>
+      <div class="grow"></div>
+    </section>`;
+    let k = 0;
+    const paint = () => app.querySelectorAll('.steps li').forEach((li, i) => { li.className = i < k ? 'done' : i === k ? 'now' : ''; });
+    paint(); clearInterval(stepTimer);
+    stepTimer = setInterval(() => { if (k < steps.length - 1) { k++; paint(); } }, 3500);
   }
 
   function manyModules() {
@@ -406,7 +499,7 @@
     files: (q, w) => filesField(q, w, true),
     links: (q, w) => textInput(q, w, true),
     text_files: (q, w) => { textInput(q, w, true, q.id + '_text'); filesField(q, w, false); },
-    date: (q, w) => { const box = el('<div class="date-box narrow"><svg class="date-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>'); const d = el('<input class="input" type="date">'); box.prepend(d); d.value = S.a[q.id] || ''; d.oninput = () => setA(q, d.value); w.appendChild(box); },
+    date: (q, w) => datePicker(q, w),
     date_text: (q, w) => { FIELDS.date(q, w); textInput(q, w, true, q.id + '_text').placeholder = ui('date.placeholder'); },
     contact: (q, w) => {
       const v = S.a[q.id] && typeof S.a[q.id] === 'object' ? S.a[q.id] : { email: '', channel: null, handle: '' };
@@ -435,6 +528,48 @@
       w.appendChild(c);
     }
   };
+  // ---------- date picker (custom, so it looks the same everywhere) ----------
+  const MONTHS = { ru: ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'], en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] };
+  const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+  const WD = { ru: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'], en: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'] };
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  function fmtDate(v) {
+    if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return v || '';
+    const [y, m, d] = v.split('-').map(Number);
+    return S.lang === 'ru' ? `${d} ${MONTHS_GEN[m - 1]} ${y}` : `${d} ${MONTHS.en[m - 1]} ${y}`;
+  }
+  const CAL_ICO = '<svg class="date-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  function datePicker(q, w) {
+    const box = el(`<div class="date-box narrow"><button type="button" class="input date-btn" aria-haspopup="dialog" aria-expanded="false" aria-labelledby="qt"><span class="dv"></span>${CAL_ICO}</button><div class="cal" hidden></div></div>`);
+    const btn = box.querySelector('.date-btn'), dv = box.querySelector('.dv'), cal = box.querySelector('.cal');
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    let view = S.a[q.id] ? new Date(S.a[q.id] + 'T00:00') : new Date(today);
+    view.setDate(1);
+    const show = () => { dv.textContent = S.a[q.id] ? fmtDate(S.a[q.id]) : ui('date.pick'); dv.classList.toggle('ph', !S.a[q.id]); };
+    function draw() {
+      const y = view.getFullYear(), m = view.getMonth();
+      const first = (new Date(y, m, 1).getDay() + 6) % 7, n = new Date(y, m + 1, 0).getDate();
+      let cells = '';
+      for (let i = 0; i < first; i++) cells += '<span></span>';
+      for (let d = 1; d <= n; d++) {
+        const dt = new Date(y, m, d), k = iso(dt);
+        cells += `<button type="button" class="day${k === S.a[q.id] ? ' sel' : ''}${+dt === +today ? ' today' : ''}${dt < today ? ' past' : ''}" data-d="${k}" aria-label="${esc(fmtDate(k))}">${d}</button>`;
+      }
+      const title = MONTHS[S.lang][m];
+      cal.innerHTML = `<div class="cal-head"><button type="button" class="cal-nav" data-m="-1" aria-label="${esc(ui('date.prev'))}">‹</button><b>${esc(title[0].toUpperCase() + title.slice(1))} ${y}</b><button type="button" class="cal-nav" data-m="1" aria-label="${esc(ui('date.next'))}">›</button></div>
+        <div class="cal-grid">${WD[S.lang].map(x => `<span class="wd">${x}</span>`).join('')}${cells}</div>
+        <div class="cal-foot"><button type="button" class="cal-clear">${esc(ui('date.clear'))}</button><button type="button" class="cal-done">${esc(ui('date.done'))}</button></div>`;
+      cal.querySelectorAll('.cal-nav').forEach(b => b.onclick = () => { view.setMonth(view.getMonth() + +b.dataset.m); draw(); });
+      cal.querySelectorAll('.day').forEach(b => b.onclick = () => { setA(q, b.dataset.d); show(); draw(); });
+      cal.querySelector('.cal-clear').onclick = () => { delete S.a[q.id]; save(); show(); draw(); };
+      cal.querySelector('.cal-done').onclick = () => toggle(false);
+    }
+    function toggle(open) { cal.hidden = !open; btn.setAttribute('aria-expanded', open); if (open) { draw(); const s = cal.querySelector('.sel') || cal.querySelector('.today') || cal.querySelector('.day'); s && s.focus(); } else btn.focus(); }
+    btn.onclick = () => toggle(cal.hidden);
+    cal.onkeydown = e => { if (e.key === 'Escape') toggle(false); };
+    show(); w.appendChild(box);
+  }
+
   let fontsLoaded = false;
   function loadFonts() { if (fontsLoaded) return; fontsLoaded = true; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = X.fontsCss; document.head.appendChild(l); }
 
@@ -453,6 +588,7 @@
       if (q.type === 'files') return v ? (v.links || '') : '';
       if (q.type === 'text_files') return '';
       if (q.type === 'consent') return v ? 'да' : 'нет';
+      if (q.type === 'date' || q.type === 'date_text') return v || '';
       return v == null ? '' : String(v);
     };
     const answers = {}, files = [];
@@ -472,19 +608,17 @@
   }
 
   async function submit() {
-    const btn = app.querySelector('#next'); btn.disabled = true; btn.textContent = ui('sending');
     const data = payload();
-    if (!CFG.endpoint) { console.info('OKOLO demo payload', data); S.demo = true; S.screen = 'final'; save(); render(); return; }
+    S.screen = 'sending'; render(); scrollTo(0, 0);
+    const back = () => { clearInterval(stepTimer); S.screen = 'q'; render(); app.querySelector('#err').textContent = ui('err.send'); };
+    if (!CFG.endpoint) { console.info('OKOLO demo payload', data); setTimeout(() => { clearInterval(stepTimer); S.demo = true; S.screen = 'final'; save(); render(); }, 4000); return; }
     try {
       // text/plain avoids a CORS preflight, which Apps Script does not answer.
       const r = await fetch(CFG.endpoint, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(data) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok || j.ok === false) throw new Error(j.error || r.status);
-      S.screen = 'final'; S.demo = false; S.sent = true; save(); render();
-    } catch (e) {
-      btn.disabled = false; btn.textContent = ui('btn.submit');
-      app.querySelector('#err').textContent = ui('err.send');
-    }
+      clearInterval(stepTimer); S.screen = 'final'; S.demo = false; S.sent = true; save(); render();
+    } catch (e) { back(); }
   }
 
   // test hook for automated path checks
