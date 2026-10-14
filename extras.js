@@ -63,6 +63,7 @@ window.OKOLO_EXTRAS = {
     'send.s3': { ru: 'Шепчу Даниилу, что ты здесь', en: 'Whispering to Daniil that you’re here' },
     'send.s4': { ru: 'Отправляю копию тебе на почту', en: 'Sending a copy to your inbox' },
     'send.note': { ru: 'Не закрывай страницу, это займёт секунд\u00A015.', en: 'Please keep this page open, it takes about 15\u00A0seconds.' },
+    'err.past': { ru: 'Эта дата уже прошла. Выбери подходящую дату.', en: 'This date has already passed. Please pick an upcoming date.' },
     'date.pick': { ru: 'Выбрать дату', en: 'Pick a date' },
     'date.prev': { ru: 'Предыдущий месяц', en: 'Previous month' },
     'date.next': { ru: 'Следующий месяц', en: 'Next month' },

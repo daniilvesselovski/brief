@@ -286,3 +286,15 @@ body.no-scroll { overflow: hidden; }
 .cal-clear { color: var(--muted) !important; }
 .date-box .date-btn { padding-right: 16px; }
 @media (max-width: 374px) { .footer .btn { padding-left: 18px; padding-right: 18px; } .footer .btn.next { min-width: 0; } }
+
+/* v0.4 */
+.sheet-scroll { position: relative; display: flex; min-height: 0; flex: 1 1 auto; }
+.sheet-list { flex: 1; padding-right: 16px; scrollbar-width: none; }
+.sheet-list::-webkit-scrollbar { display: none; }
+.sbar { position: absolute; top: 4px; bottom: 4px; right: 0; width: 4px; border-radius: 2px; background: var(--line-soft); }
+.sbar[hidden] { display: none; }
+.sbar span { display: block; width: 100%; border-radius: 2px; background: var(--cocoa); }
+.date-err { color: var(--error); font: 600 13px/1.4 var(--body); margin: var(--s8) 0 0; text-align: left; }
+.date-err:empty { display: none; }
+.date-btn.bad { border-color: var(--error); }
+.check span { text-wrap: balance; }

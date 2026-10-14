@@ -177,6 +177,7 @@
   function next(group, list) {
     const err = group.map(validate).find(Boolean);
     const box = app.querySelector('#err');
+    if (err === ui('err.past')) { box.textContent = ''; const d = app.querySelector('.date-btn.bad'); d && d.focus(); return; } // shown under the date field
     if (err) { box.textContent = err; return; }
     box.textContent = '';
     // many modules in deep mode → offer the quick brief
@@ -239,14 +240,18 @@
       <div class="sheet-in">
         <h2 id="sheet-t">${esc(ui('hist.title'))}</h2>
         <p class="hint">${esc(ui('hist.hint'))}</p>
-        <div class="sheet-list">${rows || `<p class="hint">${esc(ui('hist.none'))}</p>`}
+        <div class="sheet-scroll"><div class="sheet-list">${rows || `<p class="hint">${esc(ui('hist.none'))}</p>`}
           <button class="sheet-row now" data-i="${reachAt}"><span class="sr-q">${esc(ui('hist.now'))} · ${esc(fill(T(cur[0], 'q')))}</span></button>
           <p class="sheet-next">${esc(ui('hist.next'))}</p>
-        </div>
+        </div><div class="sbar" aria-hidden="true"><span></span></div></div>
         <button class="sheet-close" id="sclose"><span></span>${esc(ui('hist.close'))} ▴</button>
       </div></div>`;
     document.body.appendChild(bg);
     document.body.classList.add('no-scroll');
+    // own scrollbar: cocoa thumb in its own gutter, same on every device
+    const sl = bg.querySelector('.sheet-list'), bar = bg.querySelector('.sbar'), th = bar.firstChild;
+    const sync = () => { const r = sl.clientHeight / sl.scrollHeight; bar.hidden = r >= 1; th.style.height = Math.max(24, r * bar.clientHeight) + 'px'; th.style.transform = `translateY(${(sl.scrollTop / Math.max(1, sl.scrollHeight - sl.clientHeight)) * (bar.clientHeight - th.offsetHeight)}px)`; };
+    sl.addEventListener('scroll', sync, { passive: true }); requestAnimationFrame(sync); setTimeout(sync, 500);
     requestAnimationFrame(() => bg.classList.add('open'));
     const close = () => { bg.classList.remove('open'); document.body.classList.remove('no-scroll'); setTimeout(() => bg.remove(), 260); document.removeEventListener('keydown', onKey); prevFocus && prevFocus.focus && prevFocus.focus(); };
     const onKey = e => { if (e.key === 'Escape') close(); };
@@ -297,6 +302,7 @@
       (q.type === 'contact' && !(v && v.email));
     if (q.type === 'contact' && v && v.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.email.trim())) return ui('err.email');
     if (q.type === 'consent') return v ? '' : ui('err.required');
+    if ((q.type === 'date' || q.type === 'date_text') && v && new Date(v + 'T00:00') < new Date(new Date().toDateString())) return ui('err.past');
     if (q.req && empty && q.type !== 'sliders') return ui('err.required');
     if (q.exact && Array.isArray(v) && v.length && v.length !== q.exact) return fill(ui('err.exact'), { n: q.exact });
     return '';
@@ -547,7 +553,9 @@
     const today = new Date(); today.setHours(0, 0, 0, 0);
     let view = S.a[q.id] ? new Date(S.a[q.id] + 'T00:00') : new Date(today);
     view.setDate(1);
-    const show = () => { dv.textContent = S.a[q.id] ? fmtDate(S.a[q.id]) : ui('date.pick'); dv.classList.toggle('ph', !S.a[q.id]); };
+    const err = el(`<p class="date-err" role="alert"></p>`); box.appendChild(err);
+    const isPast = v => v && new Date(v + 'T00:00') < today;
+    const show = () => { err.textContent = isPast(S.a[q.id]) ? ui('err.past') : ''; btn.classList.toggle('bad', !!isPast(S.a[q.id])); dv.textContent = S.a[q.id] ? fmtDate(S.a[q.id]) : ui('date.pick'); dv.classList.toggle('ph', !S.a[q.id]); };
     function draw() {
       const y = view.getFullYear(), m = view.getMonth();
       const first = (new Date(y, m, 1).getDay() + 6) % 7, n = new Date(y, m + 1, 0).getDate();
