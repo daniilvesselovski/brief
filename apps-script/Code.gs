@@ -51,15 +51,30 @@ function writeRow_(d, files, sheetId) {
   const sh = SpreadsheetApp.openById(sheetId).getSheets()[0];
   let head = sh.getLastColumn() ? sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0] : [];
   if (!head.length) { head = SYS.slice(); sh.getRange(1, 1, 1, head.length).setValues([head]).setFontWeight('bold'); sh.setFrozenRows(1); }
+  // budget numbers for Power BI sit next to the answers but never go into the emails
+  const cols = Object.assign({}, d.answers, budgetCols_(d));
   // add a column for any question the sheet has not seen yet
-  const add = Object.keys(d.answers).filter(k => head.indexOf(k) < 0);
+  const add = Object.keys(cols).filter(k => head.indexOf(k) < 0);
   if (add.length) { sh.getRange(1, head.length + 1, 1, add.length).setValues([add]).setFontWeight('bold'); head = head.concat(add); }
   const sys = { submitted: new Date(d.submitted), started: d.started ? new Date(d.started) : '', lang: d.lang, mode: d.mode, name: d.name, brand: d.brand, email: d.email, tags: d.tags, path: d.path, files: files.map(f => f.url).join('\n') };
-  const row = head.map(h => (h in sys ? sys[h] : (d.answers[h] || '')));
+  const row = head.map(h => (h in sys ? sys[h] : (cols[h] == null ? '' : cols[h])));
   sh.appendRow(row);
 }
 
 function label_(id) { return id; }
+
+// Scope-based budget from the form (see budget.js): floor F, picked range, fit.
+function budgetCols_(d) {
+  const b = d.budget;
+  if (!b) return {};
+  return { budget_floor: b.floor, budget_min: b.min, budget_max: b.max, budget_fit: b.fit };
+}
+// "€450–700 · порог €450 · ниже порога" for the owner email subject and the Notion card
+function budgetLine_(d) {
+  const b = d.budget, w = d.answers.W03 || '';
+  if (!b || b.fit === 'не оценено') return w;
+  return w + ' · порог €' + b.floor + (b.fit === 'ниже порога' ? ' · ниже порога' : '');
+}
 
 function summary_(d) {
   return Object.keys(d.answers).filter(k => d.answers[k]).map(k => k + ': ' + d.answers[k]).join('\n');
@@ -103,7 +118,7 @@ function mail_(d, files, owner, from) {
     send_({ to: d.email, subject: subj, body: body + SIGNATURE_TEXT, htmlBody: html, name: 'Daniil · OKOLO Studio', replyTo: from || owner || '' }, from);
   }
   if (owner) {
-    send_({ to: owner, name: 'OKOLO Brief', subject: 'Новый бриф: ' + (d.brand || '—') + ' · ' + (d.answers.C10 || '') + ' · ' + (d.answers.W03 || ''),
+    send_({ to: owner, name: 'OKOLO Brief', subject: 'Новый бриф: ' + (d.brand || '—') + ' · ' + (d.answers.C10 || '') + ' · ' + budgetLine_(d),
       body: d.name + ' <' + d.email + '>\nРежим: ' + d.mode + ' · Язык: ' + d.lang + '\n\n' + summary_(d) + fl, replyTo: d.email || owner }, from);
   }
 }
@@ -121,7 +136,7 @@ function notion_(d, files, p) {
       'Режим': { select: { name: d.mode } },
       'Язык': { select: { name: d.lang } },
       'Что нужно': { rich_text: text(d.answers.C10) },
-      'Бюджет': { rich_text: text(d.answers.W03) },
+      'Бюджет': { rich_text: text(budgetLine_(d)) },
       'Сроки': { rich_text: text(d.answers.W01) },
       'Статус': { select: { name: 'Новый' } },
       'Дата': { date: { start: d.submitted } }

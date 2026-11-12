@@ -1,7 +1,7 @@
 /* OKOLO brief — branching form engine. Plain JS, no build step. */
 (function () {
   'use strict';
-  const QB = window.QB, X = window.OKOLO_EXTRAS, CFG = window.OKOLO_CONFIG;
+  const QB = window.QB, X = window.OKOLO_EXTRAS, CFG = window.OKOLO_CONFIG, B = window.OKOLO_BUDGET;
   const Q = QB.questions;
   const byId = Object.fromEntries(Q.map(q => [q.id, q]));
   const app = document.getElementById('app');
@@ -27,7 +27,7 @@
   }
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const T = (q, k) => q[S.lang][k];
-  const isOther = s => /^(Другое|Другая сумма|Something else|Other|Another amount)/i.test(s);
+  const isOther = s => /^(Другое|Другая сумма|Something else|Other|Another amount|A different amount)/i.test(s);
 
   // ---------- tags & branching ----------
   function tags() {
@@ -55,6 +55,29 @@
     vdf: t => !t.has('STRICT_GUIDE')
   };
   const visible = (q, t) => (!q.deep || t.has('DEEP')) && RULES[q.show](t);
+  // ---------- budget (W03): options start at the scope floor, see budget.js ----------
+  const budget = () => B.floor(S.a, tags());
+  const OTHER_BUDGET = 4; // index of "Другая сумма" in W03
+  function optsOf(q, L) {
+    if (q.id !== 'W03') return (q[L] && q[L].opts) || [];
+    const base = q[L].opts;
+    return B.ranges(budget().F).map(r => B.label(r, L)).concat(base[OTHER_BUDGET]);
+  }
+  function hintOf(q) {
+    if (q.id !== 'W03') return T(q, 'hint');
+    const b = budget();
+    return fill(ui(b.estimated ? 'budget.hint' : 'budget.hint_unsure'), { F: B.money(b.F, S.lang) });
+  }
+  const amount = () => { const n = parseInt(String(S.a.W03_other || '').replace(/\D/g, ''), 10); return isNaN(n) ? null : n; };
+  // A range picked before the scope changed means something else now: drop it (a typed amount stays).
+  function syncBudget() {
+    const v = S.a.W03;
+    if (typeof v !== 'number' || v === OTHER_BUDGET) return;
+    const F = budget().F;
+    if (S.budgetF !== F) { delete S.a.W03; save(); } // also clears a range saved by the old fixed list
+    S.budgetF = F;
+  }
+
   // Questions that share a screen with the one before them.
   const JOIN = { C02: 'C01', W08: 'W07', W09: 'W07' };
   function screens() {
@@ -138,6 +161,7 @@
   }
 
   function renderQuestion() {
+    syncBudget();
     const list = screens();
     if (S.idx >= list.length) S.idx = list.length - 1;
     const group = list[S.idx], q0 = group[0], t = tags();
@@ -157,7 +181,7 @@
         <div class="eyebrow"><span>${esc(blockName(q0))} · ${pos}</span>${optional ? `<span class="tag">${esc(ui('optional'))}</span>` : ''}</div>
         ${firstOfBlock && q0.block !== 'Старт' ? `<p class="block-intro">${esc(blockIntro(q0.block))}</p>` : ''}
         <h2 id="qt">${esc(fill(T(q0, 'q')))}</h2>
-        ${T(q0, 'hint') ? `<p class="hint">${esc(fill(T(q0, 'hint')))}</p>` : ''}
+        ${hintOf(q0) ? `<p class="hint">${esc(fill(hintOf(q0)))}</p>` : ''}
       </div>
       <div class="answers" id="answers"></div>
       <p class="err" id="err" role="alert"></p>
@@ -187,6 +211,7 @@
     if (err === ui('err.past')) { box.textContent = ''; const d = app.querySelector('.date-btn.bad'); d && d.focus(); return; } // shown under the date field
     if (err) { box.textContent = err; nudge(box); return; }
     box.textContent = '';
+    syncBudget();
     // many modules in deep mode → offer the quick brief
     if (group.some(q => q.id === 'C10')) {
       const mods = (S.a.C10 || []).filter(i => i < 7).length;
@@ -218,7 +243,7 @@
   }
   function answerText(q) {
     const v = S.a[q.id], L = S.lang;
-    const o = (q[L] && q[L].opts) || [];
+    const o = optsOf(q, L);
     let s = '';
     if (q.type === 'palettes') s = (v || []).map(i => X.palettes[i][L]).join(', ');
     else if (q.type === 'fonts') s = (v || []).map(i => X.fonts[i][L]).join(', ');
@@ -231,7 +256,8 @@
     else if (q.type === 'consent') s = v ? '✓' : '';
     else if (q.type === 'date' || q.type === 'date_text') s = [fmtDate(v), S.a[q.id + '_text']].filter(Boolean).join(' · ');
     else s = v == null ? '' : String(v);
-    if (S.a[q.id + '_other']) s = [s, S.a[q.id + '_other']].filter(Boolean).join(' — ');
+    if (q.id === 'W03' && v === OTHER_BUDGET) s = amount() != null ? B.money(amount(), L) : s;
+    else if (S.a[q.id + '_other']) s = [s, S.a[q.id + '_other']].filter(Boolean).join(' — ');
     return s || ui('hist.empty');
   }
   function openHistory(list, reachAt) {
@@ -318,12 +344,16 @@
     if ((q.type === 'date' || q.type === 'date_text') && v && new Date(v + 'T00:00') < new Date(new Date().toDateString())) return ui('err.past');
     if (q.req && empty && q.type !== 'sliders') return ui('err.required');
     if (q.exact && Array.isArray(v) && v.length && v.length !== q.exact) return fill(ui('err.exact'), { n: q.exact });
+    if (q.id === 'W03' && v === OTHER_BUDGET) {
+      if (amount() == null) return ui('err.budget_empty');
+      if (amount() < B.MIN) return fill(ui('err.budget_min'), { min: B.money(B.MIN, S.lang) });
+    }
     return '';
   }
 
   // ---------- fields ----------
   const el = (h) => { const d = document.createElement('div'); d.innerHTML = h.trim(); return d.firstChild; };
-  function setA(q, v) { S.a[q.id] = v; save(); }
+  function setA(q, v) { S.a[q.id] = v; if (q.id === 'W03') S.budgetF = budget().F; save(); }
 
   function field(q, sub) {
     const wrap = document.createElement('div'); wrap.className = 'field';
@@ -357,9 +387,26 @@
     let n = wrap.querySelector('.other');
     if (!show) { if (n) n.remove(); delete S.a[k]; return; }
     if (n) return;
+    if (q.id === 'W03') return moneyInput(wrap);
     n = el(`<input class="input other narrow" type="text">`); n.placeholder = ui('other.placeholder'); n.value = S.a[k] || '';
     n.oninput = () => { S.a[k] = n.value; save(); };
     wrap.appendChild(n);
+  }
+  // W03 "a different amount": whole euros only, nothing under €100, a calm note under the scope floor
+  function moneyInput(wrap) {
+    const box = el(`<div class="other narrow money"><span class="cur" aria-hidden="true">€</span><input class="input" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done"><p class="hint note" aria-live="polite"></p></div>`);
+    const n = box.querySelector('input'), note = box.querySelector('.note');
+    n.placeholder = ui('budget.placeholder'); n.setAttribute('aria-label', ui('budget.placeholder'));
+    n.value = S.a.W03_other ? String(S.a.W03_other).replace(/\D/g, '') : '';
+    const upd = () => {
+      const a = amount(), b = budget();
+      note.textContent = a != null && a >= B.MIN && b.estimated && a < b.F ? ui('budget.below') : '';
+      n.classList.toggle('bad', a != null && a < B.MIN && app.querySelector('#err').textContent !== '');
+    };
+    n.oninput = () => { const d = n.value.replace(/\D/g, '').slice(0, 7); if (d !== n.value) n.value = d; S.a.W03_other = d; save(); app.querySelector('#err').textContent = ''; upd(); };
+    n.onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); app.querySelector('#next').click(); } };
+    wrap.appendChild(box); upd();
+    if (matchMedia('(min-width: 1024px)').matches) setTimeout(() => n.focus(), 0);
   }
 
   const ILLU = {
@@ -489,7 +536,7 @@
   const FIELDS = {
     short: (q, w) => textInput(q, w, false),
     text: (q, w) => textInput(q, w, true),
-    single: (q, w) => cards(q, w, T(q, 'opts'), false),
+    single: (q, w) => cards(q, w, optsOf(q, S.lang), false),
     multi: (q, w) => {
       const o = T(q, 'opts');
       const long = o.some(x => x.length > 28);
@@ -613,7 +660,7 @@
       if (q.type === 'fonts') return (v || []).map(i => X.fonts[i].ru).join('; ');
       if (q.type === 'pairs') return (v || []).map((j, i) => j == null ? '' : X.pairs[i][j ? 'b' : 'a'].ru).join('; ');
       if (q.type === 'sliders') return (v || []).join('; ');
-      if (q.type === 'single') return typeof v === 'number' ? o[v] : '';
+      if (q.type === 'single') return typeof v === 'number' ? (q.id === 'W03' ? optsOf(q, 'ru')[v] : o[v]) : '';
       if (q.type === 'multi') return (v || []).map(i => o[i]).join('; ');
       if (q.type === 'contact') return v ? [v.email, v.channel != null ? o[v.channel] : '', v.handle].filter(Boolean).join(' · ') : '';
       if (q.type === 'files') return v ? (v.links || '') : '';
@@ -626,7 +673,8 @@
     for (const q of list) {
       const v = S.a[q.id];
       answers[q.id] = label(q, v);
-      if (S.a[q.id + '_other']) answers[q.id] += ' — ' + S.a[q.id + '_other'];
+      if (q.id === 'W03') { if (v === OTHER_BUDGET && amount() != null) answers[q.id] += ' — ' + B.money(amount(), 'ru'); }
+      else if (S.a[q.id + '_other']) answers[q.id] += ' — ' + S.a[q.id + '_other'];
       if (S.a[q.id + '_text']) answers[q.id] = [answers[q.id], S.a[q.id + '_text']].filter(Boolean).join(' — ');
       if (v && v.files) v.files.forEach(f => files.push(Object.assign({ q: q.id }, f)));
     }
@@ -634,8 +682,18 @@
       lang: S.lang, mode: t.has('DEEP') ? 'deep' : 'quick', tags: [...t].sort().join(' '),
       path: list.map(q => q.id).join(' '), started: S.started, submitted: new Date().toISOString(),
       name: name(), brand: (S.a.C01 || '').trim(), email: (S.a.W07 && S.a.W07.email) || '',
-      answers, files
+      answers, files, budget: budgetData()
     };
+  }
+
+  // Numbers for the Sheet (Power BI): floor, picked range, fit. Kept out of answers so the client's copy stays clean.
+  function budgetData() {
+    const b = budget(), v = S.a.W03;
+    let min = '', max = '';
+    if (v === OTHER_BUDGET) { min = max = amount() == null ? '' : amount(); }
+    else if (typeof v === 'number') { const r = B.ranges(b.F)[v]; min = r[0]; max = r[1] == null ? '' : r[1]; }
+    const fit = !b.estimated ? 'не оценено' : (min !== '' && min < b.F ? 'ниже порога' : 'ok');
+    return { floor: b.F, min, max, fit };
   }
 
   async function submit() {

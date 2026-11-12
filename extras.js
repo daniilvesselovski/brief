@@ -70,6 +70,12 @@ window.OKOLO_EXTRAS = {
     'date.next': { ru: 'Следующий месяц', en: 'Next month' },
     'date.clear': { ru: 'Очистить', en: 'Clear' },
     'date.done': { ru: 'Готово', en: 'Done' },
-    'lang': { ru: 'Язык', en: 'Language' }
+    'lang': { ru: 'Язык', en: 'Language' },
+    'budget.hint': { ru: 'Под твой запрос работа у меня начинается от {F}. Это ориентир, точную цену назову после созвона.', en: 'For what you’ve described, my work starts at {F}. It’s a guide: I’ll name an exact price after our call.' },
+    'budget.hint_unsure': { ru: 'Работа у меня начинается от {F}. Точную цену назову, когда вместе поймём, что нужно.', en: 'My work starts at {F}. I’ll name an exact price once we’ve worked out what you need.' },
+    'budget.placeholder': { ru: 'Сумма в евро', en: 'Amount in euros' },
+    'budget.below': { ru: 'На всё выбранное этого может не хватить. Ничего страшного: предложу, с чего начать в этом бюджете.', en: 'That may not cover everything you picked. That’s fine: I’ll suggest where to start within it.' },
+    'err.budget_empty': { ru: 'Напиши сумму, чтобы я понимал, от чего отталкиваться.', en: 'Add an amount so I know what to work with.' },
+    'err.budget_min': { ru: 'Я беру проекты от {min}.', en: 'I take on projects from {min}.' }
   }
 };
